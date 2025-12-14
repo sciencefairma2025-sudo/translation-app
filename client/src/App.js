@@ -9,6 +9,7 @@ const LANGUAGES = [
   { code: 'italian', name: 'Italian', flag: '🇮🇹' },
   { code: 'japanese', name: 'Japanese', flag: '🇯🇵' },
   { code: 'chinese', name: 'Chinese', flag: '🇨🇳' },
+  { code: 'persian', name: 'Persian/Farsi', flag: '🇮🇷' },
 ];
 
 function App() {
@@ -94,15 +95,35 @@ function App() {
         await playbackAudioContextRef.current.resume();
       }
 
-      // Cancel previous audio playback for real-time experience
-      if (currentAudioSourceRef.current) {
+      // Cancel previous audio playback with smooth fade-out to prevent pop sounds
+      if (currentAudioSourceRef.current && currentAudioSourceRef.current.gainNode) {
         try {
-          currentAudioSourceRef.current.stop();
-          console.log('Stopped previous audio playback for real-time update');
+          const gainNode = currentAudioSourceRef.current.gainNode;
+          const oldSource = currentAudioSourceRef.current.source;
+          
+          // Smooth fade-out (50ms) to prevent pop sounds
+          const fadeOutDuration = 0.05;
+          const currentTime = playbackAudioContextRef.current.currentTime;
+          
+          gainNode.gain.cancelScheduledValues(currentTime);
+          gainNode.gain.setValueAtTime(gainNode.gain.value, currentTime);
+          gainNode.gain.linearRampToValueAtTime(0, currentTime + fadeOutDuration);
+          
+          // Stop source after fade-out
+          setTimeout(() => {
+            try {
+              if (oldSource) {
+                oldSource.stop();
+              }
+            } catch (e) {
+              // Source may have already ended
+            }
+          }, fadeOutDuration * 1000 + 10);
+          
+          console.log('Fading out previous audio playback');
         } catch (e) {
           // Audio source may have already ended, ignore error
         }
-        currentAudioSourceRef.current = null;
       }
 
       // Check if this text is significantly different from last played
@@ -116,37 +137,54 @@ function App() {
       const pcmData = Uint8Array.from(atob(audioData), c => c.charCodeAt(0));
       console.log('PCM data size:', pcmData.length, 'bytes');
       
+      // Add silence padding at the end to prevent pop sounds (100ms)
+      const sampleRate = 24000;
+      const paddingSamples = Math.floor(sampleRate * 0.1); // 100ms of silence
+      const paddedLength = pcmData.length + (paddingSamples * 2); // *2 for 16-bit samples
+      const paddedPcmData = new Uint8Array(paddedLength);
+      paddedPcmData.set(pcmData);
+      // Rest is already zeros (silence)
+      
       // Convert LINEAR16 PCM to WAV format
-      const wavBuffer = pcmToWav(pcmData.buffer, 24000);
+      const wavBuffer = pcmToWav(paddedPcmData.buffer, sampleRate);
       console.log('WAV buffer size:', wavBuffer.byteLength, 'bytes');
       
       const audioBuffer = await playbackAudioContextRef.current.decodeAudioData(wavBuffer);
       console.log('Audio decoded successfully, duration:', audioBuffer.duration, 'seconds');
       
+      // Create gain node for smooth volume control and fade-in
+      const gainNode = playbackAudioContextRef.current.createGain();
+      gainNode.gain.setValueAtTime(0, playbackAudioContextRef.current.currentTime);
+      gainNode.gain.linearRampToValueAtTime(1.0, playbackAudioContextRef.current.currentTime + 0.01); // 10ms fade-in
+      gainNode.connect(playbackAudioContextRef.current.destination);
+      
       const source = playbackAudioContextRef.current.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(playbackAudioContextRef.current.destination);
+      source.connect(gainNode); // Connect source -> gain -> destination
       
-      // Store reference to current source so we can cancel it
-      currentAudioSourceRef.current = source;
+      // Store reference to both source and gain node for smooth cancellation
+      currentAudioSourceRef.current = {
+        source: source,
+        gainNode: gainNode
+      };
       
       // Track last played text
       if (text) {
         lastPlayedTextRef.current = text;
       }
       
-      console.log('Starting audio playback');
+      console.log('Starting audio playback with fade-in');
       await new Promise((resolve, reject) => {
         source.onended = () => {
           console.log('Audio playback finished');
-          if (currentAudioSourceRef.current === source) {
+          if (currentAudioSourceRef.current && currentAudioSourceRef.current.source === source) {
             currentAudioSourceRef.current = null;
           }
           resolve();
         };
         source.onerror = (error) => {
           console.error('Audio source error:', error);
-          if (currentAudioSourceRef.current === source) {
+          if (currentAudioSourceRef.current && currentAudioSourceRef.current.source === source) {
             currentAudioSourceRef.current = null;
           }
           reject(error);
@@ -155,7 +193,7 @@ function App() {
           source.start(0);
         } catch (error) {
           console.error('Error starting audio source:', error);
-          if (currentAudioSourceRef.current === source) {
+          if (currentAudioSourceRef.current && currentAudioSourceRef.current.source === source) {
             currentAudioSourceRef.current = null;
           }
           reject(error);
@@ -172,15 +210,35 @@ function App() {
     // For real-time, always cancel current audio and play the latest
     // This ensures immediate response to new translations
     
-    // Cancel any currently playing audio immediately
-    if (currentAudioSourceRef.current) {
+    // Cancel any currently playing audio with smooth fade-out to prevent pop sounds
+    if (currentAudioSourceRef.current && currentAudioSourceRef.current.gainNode) {
       try {
-        currentAudioSourceRef.current.stop();
-        console.log('Cancelled previous audio for real-time update');
+        const gainNode = currentAudioSourceRef.current.gainNode;
+        const oldSource = currentAudioSourceRef.current.source;
+        
+        // Smooth fade-out (50ms) to prevent pop sounds
+        const fadeOutDuration = 0.05;
+        const currentTime = playbackAudioContextRef.current.currentTime;
+        
+        gainNode.gain.cancelScheduledValues(currentTime);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, currentTime + fadeOutDuration);
+        
+        // Stop source after fade-out
+        setTimeout(() => {
+          try {
+            if (oldSource) {
+              oldSource.stop();
+            }
+          } catch (e) {
+            // Source may have already ended
+          }
+        }, fadeOutDuration * 1000 + 10);
+        
+        console.log('Fading out previous audio for real-time update');
       } catch (e) {
         // Audio source may have already ended
       }
-      currentAudioSourceRef.current = null;
     }
 
     if (audioQueueRef.current.length === 0) {
@@ -254,8 +312,22 @@ function App() {
           console.log('Received message from server:', data.type);
           
           if (data.type === 'audio') {
-            console.log('Received translated text:', data.text);
-            setTranslatedText(data.text || '');
+            console.log('Received translated text:', data.text, 'isFinal:', data.isFinal);
+            
+            // Only update text for final results OR better interim results (to prevent stacking)
+            // For interim results, only update if it's longer or more complete than current
+            if (data.isFinal) {
+              // Always show final results
+              setTranslatedText(data.text || '');
+            } else {
+              // For interim results, only update if it's significantly different/longer
+              const currentText = translatedText;
+              const newText = data.text || '';
+              if (newText.length > currentText.length || !currentText) {
+                setTranslatedText(newText);
+              }
+            }
+            
             // Play audio for both interim and final results for real-time experience
             // Only if audioData exists and is not empty
             if (data.audioData && data.audioData.trim() !== '') {
@@ -540,5 +612,4 @@ function App() {
   );
 }
 
-export default App;
-
+export default App

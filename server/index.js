@@ -59,6 +59,7 @@ const languageCodes = {
   'italian': 'it-IT',
   'japanese': 'ja-JP',
   'chinese': 'zh-CN',
+  'persian': 'fa-IR',
 };
 
 // Translation language codes (slightly different format)
@@ -70,6 +71,7 @@ const translateCodes = {
   'italian': 'it',
   'japanese': 'ja',
   'chinese': 'zh',
+  'persian': 'fa',
 };
 
 // Active streams for each WebSocket connection
