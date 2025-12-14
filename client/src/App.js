@@ -95,10 +95,10 @@ function App() {
         await playbackAudioContextRef.current.resume();
       }
 
-      // Cancel previous audio playback with smooth fade-out to prevent pop sounds
+      // Cancel previous audio playback wi@gmailth smooth fade-out to prevent pop sounds
       if (currentAudioSourceRef.current && currentAudioSourceRef.current.gainNode) {
         try {
-          const gainNode = currentAudioSourceRef.current.gainNode;
+          const gainNode = currentAudioSourceRef.current.gainNod
           const oldSource = currentAudioSourceRef.current.source;
           
           // Smooth fade-out (50ms) to prevent pop sounds
