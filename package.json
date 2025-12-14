@@ -1,0 +1,40 @@
+{
+  "name": "realtime-translation-app",
+  "version": "1.0.0",
+  "description": "Real-time language translation app with gRPC streaming",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "nodemon server/index.js",
+    "dev:client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "start": "node server/index.js",
+    "install:all": "npm install && cd client && npm install",
+    "check-setup": "node scripts/check-setup.js",
+    "postinstall": "npm run check-setup"
+  },
+  "keywords": [
+    "translation",
+    "grpc",
+    "speech-to-text",
+    "text-to-speech"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.9.0",
+    "@grpc/proto-loader": "^0.7.10",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ws": "^8.14.2",
+    "@google-cloud/speech": "^6.0.0",
+    "@google-cloud/translate": "^8.0.0",
+    "@google-cloud/text-to-speech": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.2"
+  }
+}
+
