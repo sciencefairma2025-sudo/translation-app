@@ -44,6 +44,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/build')));
 
+// Serve React app for all routes (catch-all handler)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
+
 // WebSocket bridge for gRPC (since browsers can't use gRPC directly)
 const WebSocket = require('ws');
 const http = require('http');
