@@ -24,18 +24,38 @@ const translationProto = grpc.loadPackageDefinition(packageDefinition).translati
 // Initialize Google Cloud clients with error handling
 let speechClient, translateClient, ttsClient;
 
+// Handle GOOGLE_APPLICATION_CREDENTIALS from environment variable (Railway)
+// If it's JSON content (not a file path), write it to a temp file
+const credentialsEnv = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+if (credentialsEnv && credentialsEnv.startsWith('{')) {
+  // It's JSON content, not a file path
+  const fs = require('fs');
+  const os = require('os');
+  const tempFilePath = path.join(os.tmpdir(), 'gcp-credentials.json');
+  try {
+    fs.writeFileSync(tempFilePath, credentialsEnv, 'utf8');
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tempFilePath;
+    console.log('✅ Wrote Google Cloud credentials to temp file');
+  } catch (writeError) {
+    console.error('❌ Failed to write credentials file:', writeError);
+  }
+}
+
 try {
   console.log('Initializing Google Cloud clients...');
+  console.log('GOOGLE_APPLICATION_CREDENTIALS:', credentialsEnv ? 'Set' : 'NOT SET');
   speechClient = new speech.SpeechClient();
   translateClient = new Translate();
   ttsClient = new textToSpeech.TextToSpeechClient();
   console.log('✅ Google Cloud clients initialized successfully');
 } catch (error) {
   console.error('❌ Failed to initialize Google Cloud clients:', error);
+  console.error('Error details:', error.message);
   console.error('Please check:');
   console.error('  1. GOOGLE_APPLICATION_CREDENTIALS is set correctly');
-  console.error('  2. key.json file exists and is valid');
+  console.error('  2. If using Railway, paste entire key.json content as the value');
   console.error('  3. Service account has necessary permissions');
+  console.error('  4. APIs are enabled in Google Cloud Console');
   process.exit(1);
 }
 
