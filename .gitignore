@@ -11,3 +11,4 @@ client/build/
 *.crt
 
 
+key.json
